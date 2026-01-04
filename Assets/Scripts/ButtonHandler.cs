@@ -20,5 +20,4 @@ public class ButtonHandler : MonoBehaviour
         Application.Quit();
         Debug.Log("Game Quit");
     }
-
 }
