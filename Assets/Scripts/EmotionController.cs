@@ -5,8 +5,10 @@ public class EmotionController : MonoBehaviour
 {
     public float moveSpeed = 7f;
 
-    public float jumpForce = 12f;
+    public float firstJumpForce = 5f;
+    public float secondJumpForce = 2f;
     public int maxJumps = 2;
+
     public Transform groundCheck;
     public float groundCheckRadius = 0.15f;
     public LayerMask groundMask;
@@ -19,13 +21,14 @@ public class EmotionController : MonoBehaviour
     public KeyCode swapKey = KeyCode.R;
 
     public string enemyTag = "Enemy";
-    public float stompMinDownVelocity = -1.0f;
+    public float stompRayLength = 0.25f;
+    public Vector2 stompRayOffset = new Vector2(0f, -0.1f);
+    public float stompBounceForce = 3.5f;
 
     private Rigidbody2D rb;
     private bool controllable = true;
 
     private float moveX;
-    private bool isGrounded;
     private int jumpsUsed;
 
     private bool isDashing;
@@ -51,11 +54,12 @@ public class EmotionController : MonoBehaviour
         moveX = Input.GetAxisRaw("Horizontal");
         UpdateFacing(moveX);
 
+        bool isGrounded = false;
         if (groundCheck != null)
-        {
             isGrounded = Physics2D.OverlapCircle(groundCheck.position, groundCheckRadius, groundMask);
-            if (isGrounded) jumpsUsed = 0;
-        }
+
+        if (isGrounded)
+            jumpsUsed = 0;
 
         if (Input.GetKeyDown(KeyCode.Space))
             TryJump();
@@ -73,6 +77,9 @@ public class EmotionController : MonoBehaviour
 
         if (!isDashing)
             rb.velocity = new Vector2(moveX * moveSpeed, rb.velocity.y);
+
+        if (rb.velocity.y <= 0f)
+            TryStompRayKill();
     }
 
     private void UpdateFacing(float xInput)
@@ -93,9 +100,11 @@ public class EmotionController : MonoBehaviour
     {
         if (jumpsUsed >= maxJumps) return;
 
+        float force = (jumpsUsed == 0) ? firstJumpForce : secondJumpForce;
+
         jumpsUsed++;
         rb.velocity = new Vector2(rb.velocity.x, 0f);
-        rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
+        rb.AddForce(Vector2.up * force, ForceMode2D.Impulse);
     }
 
     private void TryDash()
@@ -110,14 +119,14 @@ public class EmotionController : MonoBehaviour
         isDashing = true;
 
         float dir = (Mathf.Abs(moveX) > 0.01f) ? Mathf.Sign(moveX) : (facingRight ? 1f : -1f);
-        float originalGravity = rb.gravityScale;
+        float g = rb.gravityScale;
         rb.gravityScale = 0f;
 
         rb.velocity = new Vector2(dir * dashSpeed, 0f);
 
         yield return new WaitForSeconds(dashDuration);
 
-        rb.gravityScale = originalGravity;
+        rb.gravityScale = g;
         isDashing = false;
 
         yield return new WaitForSeconds(dashCooldown);
@@ -131,6 +140,22 @@ public class EmotionController : MonoBehaviour
         GameManager.I.SwapCharactersPositions();
     }
 
+    private void TryStompRayKill()
+    {
+        Vector2 origin = (Vector2)transform.position + stompRayOffset;
+        RaycastHit2D hit = Physics2D.Raycast(origin, Vector2.down, stompRayLength);
+
+        if (!hit.collider) return;
+        if (!hit.collider.CompareTag(enemyTag)) return;
+
+        var killable = hit.collider.GetComponent<IKillable>();
+        if (killable != null) killable.Kill();
+        else Destroy(hit.collider.gameObject);
+
+        rb.velocity = new Vector2(rb.velocity.x, 0f);
+        rb.AddForce(Vector2.up * stompBounceForce, ForceMode2D.Impulse);
+    }
+
     public void SetControllable(bool canControl)
     {
         controllable = canControl;
@@ -141,28 +166,6 @@ public class EmotionController : MonoBehaviour
     {
         rb.velocity = Vector2.zero;
         transform.position = position;
-    }
-
-    private void OnCollisionEnter2D(Collision2D col)
-    {
-        if (!col.collider.CompareTag(enemyTag)) return;
-
-        bool movingDown = rb.velocity.y <= stompMinDownVelocity;
-        bool hitFromAbove = false;
-
-        foreach (var c in col.contacts)
-        {
-            if (c.normal.y > 0.5f) { hitFromAbove = true; break; }
-        }
-
-        if (movingDown && hitFromAbove)
-        {
-            var killable = col.collider.GetComponent<IKillable>();
-            if (killable != null) killable.Kill();
-            else Destroy(col.collider.gameObject);
-
-            rb.velocity = new Vector2(rb.velocity.x, jumpForce * 0.6f);
-        }
     }
 
     private void OnTriggerEnter2D(Collider2D other)
@@ -178,9 +181,4 @@ public class EmotionController : MonoBehaviour
         if (other.CompareTag("Portal"))
             GameManager.I?.NotifyExitedPortal("Emotion");
     }
-}
-
-public interface IKillable
-{
-    void Kill();
 }

@@ -17,7 +17,7 @@ public class GameManager : MonoBehaviour
     public int maxDeathsBeforeRestart = 3;
     public int totalDeaths;
 
-    public int score = 0;
+    public int score = 100;
     public int emotionSwapCost = 10;
 
     [SerializeField] private bool emotionActive = true;

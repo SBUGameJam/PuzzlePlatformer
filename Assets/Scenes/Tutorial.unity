@@ -520,7 +520,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   moveSpeed: 7
-  jumpForce: 7
+  firstJumpForce: 5
+  secondJumpForce: 2
   maxJumps: 2
   groundCheck: {fileID: 876004592}
   groundCheckRadius: 0.15
@@ -533,7 +534,9 @@ MonoBehaviour:
   dashKey: 304
   swapKey: 114
   enemyTag: Enemy
-  stompMinDownVelocity: -1
+  stompRayLength: 0.25
+  stompRayOffset: {x: 0, y: -0.1}
+  stompBounceForce: 3.5
 --- !u!1 &98708918
 GameObject:
   m_ObjectHideFlags: 0
@@ -1774,7 +1777,7 @@ Transform:
   m_GameObject: {fileID: 525259462}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -20.569302, y: 2.74684, z: 0.06050212}
+  m_LocalPosition: {x: -20.48, y: 3.38, z: 0.06050212}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2132,8 +2135,8 @@ Transform:
   m_GameObject: {fileID: 876004591}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.06075, y: -0.22022, z: 0}
-  m_LocalScale: {x: 0.064018354, y: 0.001953667, z: 1}
+  m_LocalPosition: {x: 0.03054, y: -0.22907, z: 0}
+  m_LocalScale: {x: 0.18092673, y: 0.013638577, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 90896321}
@@ -2431,7 +2434,9 @@ GameObject:
   m_Component:
   - component: {fileID: 936050516}
   - component: {fileID: 936050515}
+  - component: {fileID: 936050519}
   - component: {fileID: 936050517}
+  - component: {fileID: 936050518}
   m_Layer: 0
   m_Name: enemy
   m_TagString: Enemy
@@ -2541,6 +2546,45 @@ CapsuleCollider2D:
   m_Offset: {x: 0.04431757, y: -0.003021649}
   m_Size: {x: 0.26647028, y: 0.47395667}
   m_Direction: 0
+--- !u!50 &936050518
+Rigidbody2D:
+  serializedVersion: 4
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 936050514}
+  m_BodyType: 0
+  m_Simulated: 1
+  m_UseFullKinematicContacts: 0
+  m_UseAutoMass: 0
+  m_Mass: 1
+  m_LinearDrag: 0
+  m_AngularDrag: 0.05
+  m_GravityScale: 1
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_Interpolate: 0
+  m_SleepingMode: 1
+  m_CollisionDetection: 0
+  m_Constraints: 4
+--- !u!114 &936050519
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 936050514}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 50156a6c923c1764b98eee1b4cf5a9b8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &945224282
 GameObject:
   m_ObjectHideFlags: 0
@@ -4019,7 +4063,7 @@ MonoBehaviour:
   logicSpawn: {fileID: 525259464}
   maxDeathsBeforeRestart: 3
   totalDeaths: 0
-  score: 0
+  score: 100
   emotionSwapCost: 10
   emotionActive: 1
 --- !u!4 &1762760749
@@ -4776,7 +4820,7 @@ Transform:
   m_GameObject: {fileID: 2147423880}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -20.569302, y: -2.83316, z: 0.06050212}
+  m_LocalPosition: {x: -20.25, y: -2.26, z: 0.06050212}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
