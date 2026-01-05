@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 public class GameManager : MonoBehaviour
 {
@@ -14,16 +15,22 @@ public class GameManager : MonoBehaviour
     public Transform emotionSpawn;
     public Transform logicSpawn;
 
-    public int maxDeathsBeforeRestart = 3;
-    public int totalDeaths;
-
-    public int score = 100;
+    public int score = 0;
     public int emotionSwapCost = 10;
 
     [SerializeField] private bool emotionActive = true;
 
+    [Header("Lives")]
+    public int maxLives = 3;
+    [SerializeField] private int lives;
+
+    [Header("Hearts UI (assign 3 Images in order: Heart1, Heart2, Heart3)")]
+    public Image[] heartImages;
+
     private bool emotionInPortal;
     private bool logicInPortal;
+
+    private bool deathLock;
 
     private void Awake()
     {
@@ -46,6 +53,9 @@ public class GameManager : MonoBehaviour
 
     private void Start()
     {
+        lives = Mathf.Max(1, maxLives);
+        RefreshHearts();
+
         emotionActive = true;
         SetActiveCharacter(emotionActive);
         RespawnBothToSpawns();
@@ -70,6 +80,11 @@ public class GameManager : MonoBehaviour
 
         emotionInPortal = false;
         logicInPortal = false;
+
+        deathLock = false;
+
+        lives = Mathf.Max(1, maxLives);
+        RefreshHearts();
 
         SetActiveCharacter(emotionActive);
     }
@@ -108,9 +123,13 @@ public class GameManager : MonoBehaviour
 
     public void RegisterDeathAndRespawn(string who)
     {
-        totalDeaths++;
+        if (deathLock) return;
+        deathLock = true;
 
-        if (totalDeaths >= maxDeathsBeforeRestart)
+        lives = Mathf.Max(0, lives - 1);
+        RefreshHearts();
+
+        if (lives <= 0)
         {
             RestartLevel();
             return;
@@ -119,6 +138,8 @@ public class GameManager : MonoBehaviour
         if (who == "Emotion") RespawnEmotion();
         else if (who == "Logic") RespawnLogic();
         else RespawnBothToSpawns();
+
+        deathLock = false;
     }
 
     public void RespawnEmotion()
@@ -142,11 +163,10 @@ public class GameManager : MonoBehaviour
     public void RestartLevel()
     {
         int buildIndex = SceneManager.GetActiveScene().buildIndex;
-
-        totalDeaths = 0;
+        lives = Mathf.Max(1, maxLives);
+        deathLock = false;
         emotionInPortal = false;
         logicInPortal = false;
-
         SceneManager.LoadScene(buildIndex);
     }
 
@@ -159,6 +179,17 @@ public class GameManager : MonoBehaviour
 
         emotion.TeleportTo(lPos + Vector3.left * 0.1f);
         logic.TeleportTo(ePos + Vector3.right * 0.1f);
+    }
+
+    private void RefreshHearts()
+    {
+        if (heartImages == null || heartImages.Length == 0) return;
+
+        for (int i = 0; i < heartImages.Length; i++)
+        {
+            if (heartImages[i] == null) continue;
+            heartImages[i].enabled = i < lives;
+        }
     }
 
     private void OnLevelCompleted()
