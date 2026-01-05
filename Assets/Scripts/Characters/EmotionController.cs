@@ -20,11 +20,6 @@ public class EmotionController : MonoBehaviour
     public KeyCode dashKey = KeyCode.LeftShift;
     public KeyCode swapKey = KeyCode.R;
 
-    public string enemyTag = "Enemy";
-    public float stompRayLength = 0.25f;
-    public Vector2 stompRayOffset = new Vector2(0f, -0.1f);
-    public float stompBounceForce = 3.5f;
-
     private Rigidbody2D rb;
     private bool controllable = true;
 
@@ -77,9 +72,6 @@ public class EmotionController : MonoBehaviour
 
         if (!isDashing)
             rb.velocity = new Vector2(moveX * moveSpeed, rb.velocity.y);
-
-        if (rb.velocity.y <= 0f)
-            TryStompRayKill();
     }
 
     private void UpdateFacing(float xInput)
@@ -138,22 +130,6 @@ public class EmotionController : MonoBehaviour
         if (GameManager.I == null) return;
         if (!GameManager.I.TrySpendScore(GameManager.I.emotionSwapCost)) return;
         GameManager.I.SwapCharactersPositions();
-    }
-
-    private void TryStompRayKill()
-    {
-        Vector2 origin = (Vector2)transform.position + stompRayOffset;
-        RaycastHit2D hit = Physics2D.Raycast(origin, Vector2.down, stompRayLength);
-
-        if (!hit.collider) return;
-        if (!hit.collider.CompareTag(enemyTag)) return;
-
-        var killable = hit.collider.GetComponent<IKillable>();
-        if (killable != null) killable.Kill();
-        else Destroy(hit.collider.gameObject);
-
-        rb.velocity = new Vector2(rb.velocity.x, 0f);
-        rb.AddForce(Vector2.up * stompBounceForce, ForceMode2D.Impulse);
     }
 
     public void SetControllable(bool canControl)
