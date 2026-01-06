@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -15,22 +16,43 @@ public class GameManager : MonoBehaviour
     public Transform emotionSpawn;
     public Transform logicSpawn;
 
-    public int score = 0;
-    public int emotionSwapCost = 10;
-
     [SerializeField] private bool emotionActive = true;
 
-    [Header("Lives")]
     public int maxLives = 3;
     [SerializeField] private int lives;
-
-    [Header("Hearts UI (assign 3 Images in order: Heart1, Heart2, Heart3)")]
     public Image[] heartImages;
+
+    public float deathCooldown = 0.25f;
+
+    public int emotionSpecialCost = 10;
+    public int logicSpecialCost = 10;
+
+    public int initialEmotionPoints = 100;
+    public int initialLogicPoints = 100;
+
+    [SerializeField] private int emotionPoints;
+    [SerializeField] private int logicPoints;
+
+    [SerializeField] private int emotionSpentThisLevel;
+    [SerializeField] private int logicSpentThisLevel;
+
+    private int levelStartEmotionPoints;
+    private int levelStartLogicPoints;
 
     private bool emotionInPortal;
     private bool logicInPortal;
 
-    private bool deathLock;
+    private bool deathLocked;
+    private Coroutine deathUnlockRoutine;
+
+    private bool restartingScene;
+    private bool pointsInitialized;
+
+    public int EmotionPoints => emotionPoints;
+    public int LogicPoints => logicPoints;
+    public int EmotionSpentThisLevel => emotionSpentThisLevel;
+    public int LogicSpentThisLevel => logicSpentThisLevel;
+    public int Lives => lives;
 
     private void Awake()
     {
@@ -39,10 +61,11 @@ public class GameManager : MonoBehaviour
             Destroy(gameObject);
             return;
         }
-        I = this;
 
+        I = this;
         DontDestroyOnLoad(gameObject);
         SceneManager.sceneLoaded += OnSceneLoaded;
+        Time.timeScale = 1f;
     }
 
     private void OnDestroy()
@@ -53,7 +76,23 @@ public class GameManager : MonoBehaviour
 
     private void Start()
     {
+        if (!pointsInitialized)
+        {
+            emotionPoints = Mathf.Max(0, initialEmotionPoints);
+            logicPoints = Mathf.Max(0, initialLogicPoints);
+            pointsInitialized = true;
+        }
+
+        levelStartEmotionPoints = emotionPoints;
+        levelStartLogicPoints = logicPoints;
+
+        emotionSpentThisLevel = 0;
+        logicSpentThisLevel = 0;
+
         lives = Mathf.Max(1, maxLives);
+
+        RebindSceneRefs();
+        EnsureHeartsBound();
         RefreshHearts();
 
         emotionActive = true;
@@ -63,6 +102,8 @@ public class GameManager : MonoBehaviour
 
     private void Update()
     {
+        if (restartingScene) return;
+
         if (Input.GetKeyDown(KeyCode.Tab))
         {
             emotionActive = !emotionActive;
@@ -75,18 +116,116 @@ public class GameManager : MonoBehaviour
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        if (emotion == null) emotion = FindFirstObjectByType<EmotionController>();
-        if (logic == null) logic = FindFirstObjectByType<LogicController>();
+        Time.timeScale = 1f;
+
+        if (deathUnlockRoutine != null)
+        {
+            StopCoroutine(deathUnlockRoutine);
+            deathUnlockRoutine = null;
+        }
+
+        deathLocked = false;
+
+        RebindSceneRefs();
+        EnsureHeartsBound();
 
         emotionInPortal = false;
         logicInPortal = false;
 
-        deathLock = false;
+        if (restartingScene)
+        {
+            emotionPoints = Mathf.Max(0, levelStartEmotionPoints);
+            logicPoints = Mathf.Max(0, levelStartLogicPoints);
 
-        lives = Mathf.Max(1, maxLives);
+            emotionSpentThisLevel = 0;
+            logicSpentThisLevel = 0;
+
+            lives = Mathf.Max(1, maxLives);
+
+            emotionActive = true;
+            SetActiveCharacter(emotionActive);
+            RespawnBothToSpawns();
+
+            restartingScene = false;
+        }
+        else
+        {
+            levelStartEmotionPoints = emotionPoints;
+            levelStartLogicPoints = logicPoints;
+
+            emotionSpentThisLevel = 0;
+            logicSpentThisLevel = 0;
+
+            lives = Mathf.Max(1, maxLives);
+
+            SetActiveCharacter(emotionActive);
+        }
+
         RefreshHearts();
+    }
 
-        SetActiveCharacter(emotionActive);
+    private void RebindSceneRefs()
+    {
+        emotion = FindFirstObjectByType<EmotionController>();
+        logic = FindFirstObjectByType<LogicController>();
+
+        var f = GameObject.Find("SpawnPointE");
+        if (f != null) emotionSpawn = f.transform;
+
+        var l = GameObject.Find("SpawnPointL");
+        if (l != null) logicSpawn = l.transform;
+
+        if (emotion != null)
+        {
+            var glow = emotion.GetComponentInChildren<ActiveArrowGlow>(true);
+            if (glow != null) emotionArrow = glow.gameObject;
+        }
+
+        if (logic != null)
+        {
+            var glow = logic.GetComponentInChildren<ActiveArrowGlow>(true);
+            if (glow != null) logicArrow = glow.gameObject;
+        }
+    }
+
+    private void EnsureHeartsBound()
+    {
+        bool need = heartImages == null || heartImages.Length != 3;
+        if (!need)
+        {
+            for (int i = 0; i < heartImages.Length; i++)
+            {
+                if (heartImages[i] == null) { need = true; break; }
+            }
+        }
+
+        if (!need) return;
+
+        var h1 = GameObject.Find("Heart1")?.GetComponent<Image>();
+        var h2 = GameObject.Find("Heart2")?.GetComponent<Image>();
+        var h3 = GameObject.Find("Heart3")?.GetComponent<Image>();
+
+        if (h1 != null && h2 != null && h3 != null)
+        {
+            heartImages = new Image[3] { h1, h2, h3 };
+            return;
+        }
+
+        var all = FindObjectsByType<Image>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        Image[] found = new Image[3];
+
+        for (int i = 0; i < all.Length; i++)
+        {
+            if (all[i] == null) continue;
+
+            string n = all[i].gameObject.name;
+            if (n == "Heart1") found[0] = all[i];
+            else if (n == "Heart2") found[1] = all[i];
+            else if (n == "Heart3") found[2] = all[i];
+        }
+
+        if (found[0] != null && found[1] != null && found[2] != null)
+            heartImages = found;
     }
 
     public void SetActiveCharacter(bool isEmotionActive)
@@ -98,14 +237,44 @@ public class GameManager : MonoBehaviour
         emotion.SetControllable(emotionActive);
         logic.SetControllable(!emotionActive);
 
-        if (emotionArrow) emotionArrow.SetActive(emotionActive);
-        if (logicArrow) logicArrow.SetActive(!emotionActive);
+        SetArrow(emotionArrow, emotionActive);
+        SetArrow(logicArrow, !emotionActive);
     }
 
-    public bool TrySpendScore(int amount)
+    private void SetArrow(GameObject arrow, bool active)
     {
-        if (score < amount) return false;
-        score -= amount;
+        if (arrow == null) return;
+
+        arrow.SetActive(active);
+
+        var glow = arrow.GetComponent<ActiveArrowGlow>();
+        if (glow != null) glow.SetActive(active);
+    }
+
+    public bool TrySpendEmotionSpecial()
+    {
+        return TrySpendPoints(ref emotionPoints, ref emotionSpentThisLevel, emotionSpecialCost);
+    }
+
+    public bool TrySpendLogicSpecial()
+    {
+        return TrySpendPoints(ref logicPoints, ref logicSpentThisLevel, logicSpecialCost);
+    }
+
+    private bool TrySpendPoints(ref int points, ref int spent, int cost)
+    {
+        if (cost <= 0) return true;
+        if (points < cost) return false;
+
+        points -= cost;
+        spent += cost;
+
+        if (points <= 0)
+        {
+            RestartLevelToSnapshot();
+            return false;
+        }
+
         return true;
     }
 
@@ -123,23 +292,43 @@ public class GameManager : MonoBehaviour
 
     public void RegisterDeathAndRespawn(string who)
     {
-        if (deathLock) return;
-        deathLock = true;
+        if (restartingScene) return;
+        if (deathLocked) return;
+
+        deathLocked = true;
+        if (deathUnlockRoutine != null) StopCoroutine(deathUnlockRoutine);
+        deathUnlockRoutine = StartCoroutine(UnlockDeathAfterCooldown());
 
         lives = Mathf.Max(0, lives - 1);
+
+        EnsureHeartsBound();
         RefreshHearts();
 
         if (lives <= 0)
         {
-            RestartLevel();
+            RestartLevelToSnapshot();
             return;
         }
 
         if (who == "Emotion") RespawnEmotion();
         else if (who == "Logic") RespawnLogic();
         else RespawnBothToSpawns();
+    }
 
-        deathLock = false;
+    private IEnumerator UnlockDeathAfterCooldown()
+    {
+        float t = Mathf.Max(0.01f, deathCooldown);
+        yield return new WaitForSeconds(t);
+        deathLocked = false;
+    }
+
+    private void RestartLevelToSnapshot()
+    {
+        restartingScene = true;
+        deathLocked = false;
+
+        int buildIndex = SceneManager.GetActiveScene().buildIndex;
+        SceneManager.LoadScene(buildIndex);
     }
 
     public void RespawnEmotion()
@@ -158,16 +347,6 @@ public class GameManager : MonoBehaviour
     {
         RespawnEmotion();
         RespawnLogic();
-    }
-
-    public void RestartLevel()
-    {
-        int buildIndex = SceneManager.GetActiveScene().buildIndex;
-        lives = Mathf.Max(1, maxLives);
-        deathLock = false;
-        emotionInPortal = false;
-        logicInPortal = false;
-        SceneManager.LoadScene(buildIndex);
     }
 
     public void SwapCharactersPositions()
@@ -194,5 +373,11 @@ public class GameManager : MonoBehaviour
 
     private void OnLevelCompleted()
     {
+        int current = SceneManager.GetActiveScene().buildIndex;
+
+        restartingScene = false;
+        deathLocked = false;
+
+        SceneManager.LoadScene(current + 1);
     }
 }

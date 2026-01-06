@@ -128,7 +128,7 @@ public class EmotionController : MonoBehaviour
     private void TrySwap()
     {
         if (GameManager.I == null) return;
-        if (!GameManager.I.TrySpendScore(GameManager.I.emotionSwapCost)) return;
+        if (!GameManager.I.TrySpendEmotionSpecial()) return;
         GameManager.I.SwapCharactersPositions();
     }
 

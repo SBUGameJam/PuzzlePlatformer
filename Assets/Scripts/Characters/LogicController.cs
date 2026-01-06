@@ -48,7 +48,7 @@ public class LogicController : MonoBehaviour
             TryInteract();
 
         if (Input.GetKeyDown(scanKey))
-            Scan();
+            TryScan();
     }
 
     private void FixedUpdate()
@@ -83,8 +83,11 @@ public class LogicController : MonoBehaviour
             interactable.Interact(this);
     }
 
-    private void Scan()
+    private void TryScan()
     {
+        if (GameManager.I == null) return;
+        if (!GameManager.I.TrySpendLogicSpecial()) return;
+
         Collider2D[] hits = Physics2D.OverlapCircleAll(transform.position, scanRadius, scanMask);
         for (int i = 0; i < hits.Length; i++)
         {
